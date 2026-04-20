@@ -21,7 +21,7 @@ body {font-family: Arial; background:#f5f7fb; margin:0;}
 .fill {height:100%;background:#22c55e;border-radius:4px;}
 .meta {display:flex;justify-content:space-between;font-size:12px;color:#6b7280;}
 
-.drawer {position:fixed;top:0;right:-400px;width:400px;height:100%;background:#fff;border-left:1px solid #ddd;padding:20px;transition:0.3s;}
+.drawer {position:fixed;top:0;right:-400px;width:400px;height:100%;background:#fff;border-left:1px solid #ddd;padding:20px;transition:0.3s;overflow:auto;}
 .drawer.open {right:0;}
 </style>
 </head>
@@ -91,9 +91,9 @@ function renderCards(){
   list=customers.filter(c=>c["Current Stage"]===currentFilter);
  }
 
- document.getElementById("cards").innerHTML=list.map((c,i)=>{
+ document.getElementById("cards").innerHTML=list.map(c=>{
   return `
-  <div class="card" onclick="openDrawer(${i})">
+  <div class="card" onclick="openDrawer('${c["Account Name"]}')">
     <b>${c["Account Name"]}</b><br>
     ${c["Current Stage"]}<br>
     <div class="progress"><div class="fill" style="width:50%"></div></div>
@@ -104,13 +104,15 @@ function renderCards(){
  }).join("");
 }
 
-function openDrawer(i){
- const c=customers[i];
+function openDrawer(name){
+ const c=customers.find(x=>x["Account Name"]===name);
+ if(!c) return;
+
  document.getElementById("drawer").classList.add("open");
  document.getElementById("drawer").innerHTML=`
    <h2>${c["Account Name"]}</h2>
    <p><b>Stage:</b> ${c["Current Stage"]}</p>
-   <p><b>POC:</b> ${c["POC Name"]}</p>
+   <p><b>POC:</b> ${c["POC Name"]||"-"}</p>
    <p><b>Email:</b> ${c["POC Email"]||"-"}</p>
    <p><b>Phone:</b> ${c["POC Phone"]||"-"}</p>
    <p><b>Notes:</b> ${c["Customer Notes"]||"-"}</p>
