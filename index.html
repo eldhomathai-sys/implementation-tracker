@@ -3,62 +3,126 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Implementation Tracker</title>
+<title>Leadership Dashboard</title>
 
 <style>
-body { font-family: Arial; background:#f4f6f9; margin:0; }
-.topbar { background:#1e293b; color:#fff; padding:12px 20px; display:flex; justify-content:space-between; }
-.container { padding:20px; }
-.card { background:#fff; padding:15px; margin:10px 0; border-radius:8px; border:1px solid #ddd; }
-.loading { text-align:center; margin-top:40px; }
+body {font-family: Arial; background:#f5f7fb; margin:0;}
+.topbar {background:#111827;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;}
+.container {padding:24px;max-width:1200px;margin:auto;}
+
+.kpis {display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
+.kpi {background:#fff;padding:14px;border-radius:10px;border:1px solid #e5e7eb;cursor:pointer;}
+.kpi:hover {border-color:#6366f1;}
+
+.grid {display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+
+.card {background:#fff;border-radius:12px;padding:16px;border:1px solid #e5e7eb;cursor:pointer;}
+.progress {height:6px;background:#e5e7eb;border-radius:4px;margin:8px 0;}
+.fill {height:100%;background:#22c55e;border-radius:4px;}
+.meta {display:flex;justify-content:space-between;font-size:12px;color:#6b7280;}
+
+.drawer {position:fixed;top:0;right:-400px;width:400px;height:100%;background:#fff;border-left:1px solid #ddd;padding:20px;transition:0.3s;}
+.drawer.open {right:0;}
 </style>
 </head>
 
 <body>
 
 <div class="topbar">
-  <div>Implementation Tracker</div>
-  <div id="status">Loading...</div>
+<div>Leadership Dashboard</div>
+<div id="status">Loading...</div>
 </div>
 
 <div class="container">
-  <div id="data" class="loading">Fetching data...</div>
+<div class="kpis" id="kpis"></div>
+<div class="grid" id="cards"></div>
 </div>
 
+<div class="drawer" id="drawer"></div>
+
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbwosvI8siAqnPCAGCEVLFykTQWwpRUKRLKsrlQRIkwEEzkJG3UfRhy31j1EPtBZqYIP/exec";
+const API="https://script.google.com/macros/s/AKfycbwosvI8siAqnPCAGCEVLFykTQWwpRUKRLKsrlQRIkwEEzkJG3UfRhy31j1EPtBZqYIP/exec";
 
-async function loadData() {
-  try {
-    const res = await fetch(API_URL);
-    const data = await res.json();
+let customers=[];
+let currentFilter="all";
 
-    document.getElementById("status").innerText = "Live";
-
-    render(data.customers || []);
-  } catch (e) {
-    document.getElementById("status").innerText = "Error";
-    document.getElementById("data").innerHTML = "❌ " + e.message;
-  }
+async function load(){
+ const res=await fetch(API);
+ const data=await res.json();
+ customers=data.customers||[];
+ document.getElementById("status").innerText="Live";
+ renderKPIs();
+ renderCards();
 }
 
-function render(customers) {
-  if (!customers.length) {
-    document.getElementById("data").innerHTML = "No data found";
-    return;
-  }
+function renderKPIs(){
+ const total=customers.length;
+ const live=customers.filter(c=>["Live","Post Go-Live"].includes(c["Current Stage"])).length;
 
-  document.getElementById("data").innerHTML = customers.map(c => `
-    <div class="card">
-      <b>${c["Account Name"] || "-"}</b><br>
-      Stage: ${c["Current Stage"] || "-"}<br>
-      Risk: ${c["Risk Level"] || "-"}<br>
-      POC: ${c["POC Name"] || "-"}
+ const stageCounts={};
+ customers.forEach(c=>{
+   const s=c["Current Stage"]||"Unknown";
+   stageCounts[s]=(stageCounts[s]||0)+1;
+ });
+
+ let html=`
+ <div class="kpi" onclick="filter('all')"><b>Total</b><br>${total}</div>
+ <div class="kpi" onclick="filter('live')"><b>Live</b><br>${live}</div>
+ `;
+
+ Object.keys(stageCounts).forEach(s=>{
+  html+=`<div class="kpi" onclick="filter('stage','${s}')"><b>${s}</b><br>${stageCounts[s]}</div>`;
+ });
+
+ document.getElementById("kpis").innerHTML=html;
+}
+
+function filter(type,val){
+ currentFilter=type==="stage"?val:type;
+ renderCards();
+}
+
+function renderCards(){
+ let list=customers;
+
+ if(currentFilter==="live"){
+  list=customers.filter(c=>["Live","Post Go-Live"].includes(c["Current Stage"]));
+ }else if(currentFilter!=="all"){
+  list=customers.filter(c=>c["Current Stage"]===currentFilter);
+ }
+
+ document.getElementById("cards").innerHTML=list.map((c,i)=>{
+  return `
+  <div class="card" onclick="openDrawer(${i})">
+    <b>${c["Account Name"]}</b><br>
+    ${c["Current Stage"]}<br>
+    <div class="progress"><div class="fill" style="width:50%"></div></div>
+    <div class="meta">
+      <span>${c["Risk Level"]||"-"}</span>
     </div>
-  `).join("");
+  </div>`;
+ }).join("");
 }
 
-loadData();
+function openDrawer(i){
+ const c=customers[i];
+ document.getElementById("drawer").classList.add("open");
+ document.getElementById("drawer").innerHTML=`
+   <h2>${c["Account Name"]}</h2>
+   <p><b>Stage:</b> ${c["Current Stage"]}</p>
+   <p><b>POC:</b> ${c["POC Name"]}</p>
+   <p><b>Email:</b> ${c["POC Email"]||"-"}</p>
+   <p><b>Phone:</b> ${c["POC Phone"]||"-"}</p>
+   <p><b>Notes:</b> ${c["Customer Notes"]||"-"}</p>
+   <br><button onclick="closeDrawer()">Close</button>
+ `;
+}
+
+function closeDrawer(){
+ document.getElementById("drawer").classList.remove("open");
+}
+
+load();
 </script>
 
 </body>
